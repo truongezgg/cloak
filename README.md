@@ -18,7 +18,7 @@ cloak
 ```
 
 - Starts interactive picker mode from the current directory
-- Lets you choose a file from the top level of the current directory
+- Lets you choose a file from the current directory tree (including nested subdirectories)
 
 ```bash
 cloak <path>
@@ -26,7 +26,7 @@ cloak <path>
 
 - Uses the provided path directly (relative or absolute)
 - Skips the file picker
-- If the canonical target is outside the startup current directory, Cloak shows a warning and asks to continue
+- If the canonical target is outside the startup current directory, Cloak rejects the request and suggests rerunning Cloak from the desired tree instead
 
 Examples:
 
@@ -86,53 +86,19 @@ If a selected/direct-path file cannot be safely read as text (including director
 Cannot read file
 ```
 
-## Authentication flow
+## Local password state
 
-On first run:
+Cloak reads a `.cloak` file from the directory where the command was started. The file stores a single line of the form `PASSWORD=...` in plain text so each working tree keeps its credential data locally.
 
-1. Cloak asks for a new password
-2. Cloak asks for confirmation
-3. Cloak stores password-derived authentication data in:
+- On startup, Cloak scans `.cloak` for the first valid `PASSWORD=...` line and uses that value.
+- Lines that do not begin with `PASSWORD=` are ignored, and empty `PASSWORD=` values are treated as invalid.
+- If no valid password entry exists (or the file is missing), Cloak prompts once for a password and rewrites `.cloak` with `PASSWORD=<your input>`.
+- `.cloak` itself is reserved for local password state and is never offered as an encode or decode target.
 
-```txt
-~/.config/cloak/config.json
-```
+## Path restrictions
 
-On later runs:
-
-- Cloak asks for your password
-- You get up to 3 attempts
-- After 3 failed attempts, it exits with `Too many failed attempts`
-
-Cloak does not store the raw password.
-
-## Security details
-
-### Password storage
-
-`config.json` stores password-derived authentication data using:
-
-- Argon2id
-- random salt per password record
-- minimum settings:
-  - memory cost: 64 MiB
-  - time cost: 3
-  - parallelism: 1
-  - salt length: 16 bytes
-  - hash length: 32 bytes
-
-### File encryption
-
-Cloak encrypts file contents using:
-
-- AES-256-GCM
-- per-file random salt
-- `scrypt` key derivation from your password
-
-Encoded files are stored as text with:
-
-- line 1 marker: `# CLOAK: ENCRYPTED`
-- line 2 compact JSON payload containing metadata and ciphertext
+- Cloak only allows targets that live within the directory tree where the command was launched; files inside nested subdirectories are permitted.
+- If a resolved target would fall outside that startup tree, Cloak rejects the request and suggests changing into the desired tree before running Cloak again.
 
 ## Installation
 
@@ -221,7 +187,6 @@ Main files:
 - `Passwords do not match`
 - `Cannot read file`
 - `Cannot write file`
-- `Invalid config.json: ...`
 - `File is not protected by Cloak`
 
 ## License

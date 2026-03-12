@@ -26,8 +26,9 @@
       "Bash(git -C \"/Users/truongezgg/Works/Me/tools/cloak\" status --short && git -C \"/Users/truongezgg/Works/Me/tools/cloak\" log --oneline --decorate -5 && git -C \"/Users/truongezgg/Works/Me/tools/cloak\" diff --stat HEAD~1..HEAD)",
       "Bash(git -C \"/Users/truongezgg/Works/Me/tools/cloak\" diff -- src/app/runCloak.ts src/app/types.ts src/cli.ts src/ui/prompts.ts src/files/resolveTarget.ts src/files/writeOutput.ts src/files/writeWithBackup.ts tests/prompts.test.ts tests/runCloak.test.ts tests/resolveTarget.test.ts tests/writeWithBackup.test.ts)",
       "Bash(git -C \"/Users/truongezgg/Works/Me/tools/cloak\" show HEAD:src/files/writeWithBackup.ts && printf '\\\\n---FILE-END---\\\\n' && git -C \"/Users/truongezgg/Works/Me/tools/cloak\" show HEAD:tests/writeWithBackup.test.ts)",
-      "Bash(npm --prefix \"/Users/truongezgg/Works/Me/tools/cloak\" test)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Search",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

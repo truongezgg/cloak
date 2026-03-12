@@ -1,14 +1,12 @@
-import { access, readFile, realpath } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { loadConfig, saveConfig } from '../config/config.js'
+import { access, readFile, realpath } from 'node:fs/promises'
 import { decodeTextFile, encodeTextFile } from '../crypto/fileCipher.js'
-import { createPasswordRecord, verifyPassword } from '../crypto/password.js'
-import { decodeUtf8Text, firstLineMatchesMarker, isLikelyTextBuffer } from '../files/readFileState.js'
 import { listSelectableFiles } from '../files/listFiles.js'
+import { loadLocalPassword, saveLocalPassword } from '../files/localPassword.js'
+import { decodeUtf8Text, firstLineMatchesMarker, isLikelyTextBuffer } from '../files/readFileState.js'
 import { resolveTarget } from '../files/resolveTarget.js'
 import { writeOutput as writeOutputFile } from '../files/writeOutput.js'
-import { createPromptPort } from '../ui/prompts.js'
+import { createPromptPort, outsideRootMessage } from '../ui/prompts.js'
 import type { RunCloakOptions } from './types.js'
 
 function isUserCancel(error: unknown): boolean {
@@ -28,59 +26,24 @@ async function withUserCancelExit<T>(operation: () => Promise<T>): Promise<T | u
 
 export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd()
-  const configDir = options.configDir ?? join(homedir(), '.config', 'cloak')
   const prompts = options.prompts ?? createPromptPort()
   const resolveTargetPath = options.resolveTargetPath ?? resolveTarget
   const writeOutput = options.writeOutput ?? writeOutputFile
   const rootDir = await realpath(cwd)
+  const configPath = join(rootDir, '.cloak')
 
-  let config = await loadConfig(configDir)
-  let sessionPassword = ''
-
-  if (!config) {
-    while (true) {
-      const nextPassword = await withUserCancelExit(() => prompts.askNewPassword())
-      if (nextPassword === undefined) {
-        return
-      }
-
-      const confirmation = await withUserCancelExit(() => prompts.askConfirmPassword())
-      if (confirmation === undefined) {
-        return
-      }
-
-      if (nextPassword !== confirmation) {
-        await prompts.showMessage('Passwords do not match')
-        continue
-      }
-
-      config = await createPasswordRecord(nextPassword)
-      await saveConfig(configDir, config)
-      sessionPassword = nextPassword
-      break
+  let sessionPassword = await loadLocalPassword(rootDir)
+  let configFound = sessionPassword !== null
+  if (!sessionPassword) {
+    const enteredPassword = await withUserCancelExit(() =>
+      prompts.askLocalPassword({ rootDir, configPath, configFound }),
+    )
+    if (enteredPassword === undefined) {
+      return
     }
-  } else {
-    let authenticated = false
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const passwordAttempt = await withUserCancelExit(() => prompts.askPassword())
-      if (passwordAttempt === undefined) {
-        return
-      }
-
-      sessionPassword = passwordAttempt
-      authenticated = await verifyPassword(sessionPassword, config)
-
-      if (authenticated) {
-        break
-      }
-
-      await prompts.showMessage('Wrong password')
-    }
-
-    if (!authenticated) {
-      throw new Error('Too many failed attempts')
-    }
+    sessionPassword = enteredPassword
+    await saveLocalPassword(rootDir, sessionPassword)
+    configFound = true
   }
 
   let selectedPath: string
@@ -89,22 +52,27 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
     selectedPath = options.directPath
   } else {
     const files = await listSelectableFiles(rootDir)
-
-    try {
-      selectedPath = await prompts.selectFile(files)
-    } catch (error) {
-      if (isUserCancel(error)) {
-        return
-      }
-      await prompts.showMessage('Cannot read file')
-      throw new Error('Cannot read file')
+    const picked = await withUserCancelExit(() => prompts.selectFile(files, { rootDir, configPath, configFound }))
+    if (picked === undefined) {
+      return
     }
+    selectedPath = picked
   }
 
   let target
   try {
     target = await resolveTargetPath(rootDir, selectedPath)
   } catch {
+    await prompts.showMessage('Cannot read file')
+    throw new Error('Cannot read file')
+  }
+
+  if (target.outsideRoot) {
+    await prompts.showMessage(outsideRootMessage(target.sourcePath))
+    throw new Error('File is outside the current directory')
+  }
+
+  if (target.isWorkspacePasswordFile) {
     await prompts.showMessage('Cannot read file')
     throw new Error('Cannot read file')
   }
@@ -121,21 +89,9 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
     throw new Error('Cannot read file')
   }
 
-  if (target.outsideRoot) {
-    let outsideConfirmed: boolean
-
-    try {
-      outsideConfirmed = await prompts.confirmOutsideRoot(target.sourcePath)
-    } catch (error) {
-      if (isUserCancel(error)) {
-        return
-      }
-      throw error
-    }
-
-    if (!outsideConfirmed) {
-      return
-    }
+  if (target.outputPath === target.sourcePath) {
+    await prompts.showMessage('Cannot write file')
+    throw new Error('Cannot write file')
   }
 
   const action = target.action
@@ -154,7 +110,11 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
 
   let confirmed: boolean
   try {
-    confirmed = await prompts.confirmAction(action, target.sourcePath, target.outputPath, overwrite)
+    confirmed = await prompts.confirmAction(action, target.sourcePath, target.outputPath, overwrite, {
+      rootDir,
+      configPath,
+      configFound,
+    })
   } catch (error) {
     if (isUserCancel(error)) {
       return
@@ -170,11 +130,6 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
     action === 'encode'
       ? await encodeTextFile(currentText, sessionPassword)
       : await decodeTextFile(currentText, sessionPassword)
-
-  if (target.outputPath === target.sourcePath) {
-    await prompts.showMessage('Cannot write file')
-    throw new Error('Cannot write file')
-  }
 
   try {
     await writeOutput(target.outputPath, nextText)

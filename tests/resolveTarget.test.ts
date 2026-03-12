@@ -58,3 +58,17 @@ it('marks a canonical path outside the startup directory', async () => {
   const target = await resolveTarget(root, filePath)
   expect(target.outsideRoot).toBe(true)
 })
+
+
+it('recognizes the workspace password file target', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cloak-target-'))
+  const canonicalRoot = await realpath(root)
+  const passwordFile = join(root, '.cloak')
+  await writeFile(passwordFile, '# CLOAK: PASSWORD\n', 'utf8')
+
+  const target = await resolveTarget(root, './.cloak')
+  expect(target.isWorkspacePasswordFile).toBe(true)
+  expect(target.outsideRoot).toBe(false)
+  expect(target.sourcePath).toBe(join(canonicalRoot, '.cloak'))
+  expect(target.action).toBe('decode')
+})
