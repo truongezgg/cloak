@@ -2,6 +2,8 @@
 
 Cloak is a terminal tool for protecting text files with a password.
 
+For people who receive a `.cloak` file and only need to restore the original text, see [DECODE.md](./DECODE.md).
+
 ## Breaking behavior change
 
 Cloak now writes to a separate destination file instead of overwriting the source file in place.
@@ -12,6 +14,8 @@ Cloak now writes to a separate destination file instead of overwriting the sourc
 - Backup-file behavior is removed from the main encode/decode flow
 
 ## Usage
+
+For decode instructions and a sample decode test, see [DECODE.md](./DECODE.md).
 
 ```bash
 cloak
@@ -107,7 +111,60 @@ Cloak reads a `.cloak` file from the directory where the command was started. Th
 - Node.js
 - npm
 
-### Install dependencies
+### Install globally from GitHub
+
+Using the GitHub HTTPS URL:
+
+```bash
+npm install -g git+https://github.com/truongezgg/cloak.git
+```
+
+Using the GitHub SSH URL:
+
+```bash
+npm install -g git+ssh://git@github.com/truongezgg/cloak.git
+```
+
+Using GitHub shorthand:
+
+```bash
+npm install -g github:truongezgg/cloak
+```
+
+After install, run:
+
+```bash
+cloak
+cloak <path>
+```
+
+Examples:
+
+```bash
+cloak
+cloak ./.env
+cloak /absolute/path/to/.env.cloak
+```
+
+### Update the global install
+
+```bash
+npm update -g cloak
+```
+
+If npm does not update the GitHub-installed package as expected, reinstall it:
+
+```bash
+npm install -g git+https://github.com/truongezgg/cloak.git
+```
+
+### Uninstall
+
+```bash
+npm uninstall -g cloak
+```
+
+### Install for local development
 
 ```bash
 npm install
@@ -122,10 +179,10 @@ npm run build
 ### Run directly
 
 ```bash
-node dist/cli.js
+node dist/src/cli.js
 ```
 
-### Link as local CLI command
+### Link as local CLI command during development
 
 ```bash
 npm link

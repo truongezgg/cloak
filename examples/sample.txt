@@ -1,0 +1,3 @@
+hello from cloak
+this is a sample file for decode testing
+password: demo123 (example only)

@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "cloak": "dist/cli.js"
+    "cloak": "dist/src/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "dev": "tsx src/cli.ts",
     "test": "vitest run"
   },
