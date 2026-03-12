@@ -8,10 +8,25 @@ vi.mock('@inquirer/prompts', () => ({
 }))
 
 import { password } from '@inquirer/prompts'
-import { createPromptPort } from '../src/ui/prompts.js'
+import { actionMessage, createPromptPort, outsideRootMessage, overwriteWarningMessage } from '../src/ui/prompts.js'
 
 beforeEach(() => {
   vi.mocked(password).mockReset()
+})
+
+it('formats the encode confirmation with source and output', () => {
+  expect(actionMessage('encode', '.env', '.env.cloak')).toContain('Encode this file?')
+  expect(actionMessage('encode', '.env', '.env.cloak')).toContain('Source: .env')
+  expect(actionMessage('encode', '.env', '.env.cloak')).toContain('Output: .env.cloak')
+})
+
+it('formats the decode overwrite warning', () => {
+  expect(overwriteWarningMessage('.env')).toContain('WARNING: destination file already exists')
+  expect(overwriteWarningMessage('.env')).toContain('Target: .env')
+})
+
+it('formats the outside-root warning', () => {
+  expect(outsideRootMessage('/tmp/.env')).toContain('outside the current directory')
 })
 
 it('cancels password prompt when q is pressed', async () => {

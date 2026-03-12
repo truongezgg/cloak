@@ -18,6 +18,19 @@ export type PromptPort = {
   askConfirmPassword(): Promise<string>
   askPassword(): Promise<string>
   selectFile(files: { name: string; path: string }[]): Promise<string>
-  confirmAction(action: ActionKind): Promise<boolean>
+  confirmOutsideRoot(path: string): Promise<boolean>
+  confirmAction(action: ActionKind, sourcePath: string, outputPath: string, overwrite: boolean): Promise<boolean>
   showMessage(message: string): Promise<void>
+}
+
+export type RunCloakOptions = {
+  cwd?: string
+  configDir?: string
+  prompts?: PromptPort
+  directPath?: string
+  resolveTargetPath?: (
+    rootDir: string,
+    inputPath: string,
+  ) => Promise<{ sourcePath: string; outputPath: string; action: ActionKind; outsideRoot: boolean }>
+  writeOutput?: (filePath: string, content: string) => Promise<void>
 }

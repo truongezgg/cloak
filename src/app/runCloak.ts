@@ -1,24 +1,15 @@
-import { readFile, realpath } from 'node:fs/promises'
+import { access, readFile, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, sep } from 'node:path'
+import { join } from 'node:path'
 import { loadConfig, saveConfig } from '../config/config.js'
-import { decodeTextFile, detectEncodedText, encodeTextFile } from '../crypto/fileCipher.js'
+import { decodeTextFile, encodeTextFile } from '../crypto/fileCipher.js'
 import { createPasswordRecord, verifyPassword } from '../crypto/password.js'
-import { decodeUtf8Text, isLikelyTextBuffer } from '../files/readFileState.js'
+import { decodeUtf8Text, firstLineMatchesMarker, isLikelyTextBuffer } from '../files/readFileState.js'
 import { listSelectableFiles } from '../files/listFiles.js'
-import { writeWithBackup } from '../files/writeWithBackup.js'
+import { resolveTarget } from '../files/resolveTarget.js'
+import { writeOutput as writeOutputFile } from '../files/writeOutput.js'
 import { createPromptPort } from '../ui/prompts.js'
-import type { PromptPort } from './types.js'
-
-type RunCloakOptions = {
-  cwd?: string
-  configDir?: string
-  prompts?: PromptPort
-}
-
-function isInsideRoot(rootDir: string, selectedPath: string): boolean {
-  return selectedPath === rootDir || selectedPath.startsWith(`${rootDir}${sep}`)
-}
+import type { RunCloakOptions } from './types.js'
 
 function isUserCancel(error: unknown): boolean {
   return error instanceof Error && error.message === 'User cancelled'
@@ -39,6 +30,8 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd()
   const configDir = options.configDir ?? join(homedir(), '.config', 'cloak')
   const prompts = options.prompts ?? createPromptPort()
+  const resolveTargetPath = options.resolveTargetPath ?? resolveTarget
+  const writeOutput = options.writeOutput ?? writeOutputFile
   const rootDir = await realpath(cwd)
 
   let config = await loadConfig(configDir)
@@ -90,35 +83,35 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
     }
   }
 
-  const files = await listSelectableFiles(rootDir)
-
   let selectedPath: string
-  try {
-    selectedPath = await prompts.selectFile(files)
-  } catch (error) {
-    if (isUserCancel(error)) {
-      return
+
+  if (options.directPath) {
+    selectedPath = options.directPath
+  } else {
+    const files = await listSelectableFiles(rootDir)
+
+    try {
+      selectedPath = await prompts.selectFile(files)
+    } catch (error) {
+      if (isUserCancel(error)) {
+        return
+      }
+      await prompts.showMessage('Cannot read file')
+      throw new Error('Cannot read file')
     }
-    await prompts.showMessage('Cannot read file')
-    throw new Error('Cannot read file')
   }
 
-  let resolvedPath: string
+  let target
   try {
-    resolvedPath = await realpath(selectedPath)
+    target = await resolveTargetPath(rootDir, selectedPath)
   } catch {
-    await prompts.showMessage('Cannot read file')
-    throw new Error('Cannot read file')
-  }
-
-  if (!isInsideRoot(rootDir, resolvedPath)) {
     await prompts.showMessage('Cannot read file')
     throw new Error('Cannot read file')
   }
 
   let currentText: string
   try {
-    const fileBytes = await readFile(resolvedPath)
+    const fileBytes = await readFile(target.sourcePath)
     if (!isLikelyTextBuffer(fileBytes)) {
       throw new Error('Not text')
     }
@@ -128,11 +121,40 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
     throw new Error('Cannot read file')
   }
 
-  const action = detectEncodedText(currentText) ? 'decode' : 'encode'
+  if (target.outsideRoot) {
+    let outsideConfirmed: boolean
+
+    try {
+      outsideConfirmed = await prompts.confirmOutsideRoot(target.sourcePath)
+    } catch (error) {
+      if (isUserCancel(error)) {
+        return
+      }
+      throw error
+    }
+
+    if (!outsideConfirmed) {
+      return
+    }
+  }
+
+  const action = target.action
+
+  if (action === 'decode' && !firstLineMatchesMarker(currentText)) {
+    throw new Error('File is not protected by Cloak')
+  }
+
+  let overwrite = false
+  try {
+    await access(target.outputPath)
+    overwrite = true
+  } catch {
+    overwrite = false
+  }
 
   let confirmed: boolean
   try {
-    confirmed = await prompts.confirmAction(action)
+    confirmed = await prompts.confirmAction(action, target.sourcePath, target.outputPath, overwrite)
   } catch (error) {
     if (isUserCancel(error)) {
       return
@@ -149,8 +171,13 @@ export async function runCloak(options: RunCloakOptions = {}): Promise<void> {
       ? await encodeTextFile(currentText, sessionPassword)
       : await decodeTextFile(currentText, sessionPassword)
 
+  if (target.outputPath === target.sourcePath) {
+    await prompts.showMessage('Cannot write file')
+    throw new Error('Cannot write file')
+  }
+
   try {
-    await writeWithBackup(resolvedPath, nextText)
+    await writeOutput(target.outputPath, nextText)
   } catch {
     await prompts.showMessage('Cannot write file')
     throw new Error('Cannot write file')

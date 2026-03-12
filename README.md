@@ -1,126 +1,116 @@
 # Cloak
 
-Cloak is a small terminal tool for protecting text files with a password.
+Cloak is a terminal tool for protecting text files with a password.
 
-When you run `cloak`, it:
+## Breaking behavior change
 
-1. asks you to set a password on first run
-2. asks for your password on later runs
-3. opens a file picker in the current directory
-4. automatically decides whether to encode or decode the selected file
-5. overwrites the same file after confirmation
+Cloak now writes to a separate destination file instead of overwriting the source file in place.
 
-Cloak is designed for text-based secrets such as:
+- Encode: `source` -> `source.cloak`
+- Decode: `source.cloak` -> `source`
+- Source files remain unchanged for both encode and decode
+- Backup-file behavior is removed from the main encode/decode flow
 
-- `.env`
-- `.env.local`
-- `.json`
-- `.txt`
-- `.pem`
-- `.key`
+## Usage
 
-## Features
+```bash
+cloak
+```
 
-- First-run password setup
-- Password verification on each later run
-- Current-directory file picker
-- Auto-detect encode vs decode from file header
-- Backup file creation before overwrite
-- Clean cancel with `Esc` or `q`
-- Text-file safety checks to avoid corrupting binary files
-- Local config stored in `~/.config/cloak/config.json`
+- Starts interactive picker mode from the current directory
+- Lets you choose a file from the top level of the current directory
 
-## How it works
+```bash
+cloak <path>
+```
 
-### First run
+- Uses the provided path directly (relative or absolute)
+- Skips the file picker
+- If the canonical target is outside the startup current directory, Cloak shows a warning and asks to continue
 
-If no password is configured yet:
+Examples:
 
-- Cloak asks for a new password
-- Cloak asks you to confirm it
-- Cloak stores only password-derived authentication data in:
+```bash
+cloak ./.env
+cloak /absolute/path/to/.env
+cloak /absolute/path/to/.env.cloak
+```
+
+## Encode / decode rules
+
+Action selection is filename-based:
+
+- Files ending in `.cloak` are decode candidates
+- All other files are encode candidates
+
+Decode validation is still strict:
+
+- A `.cloak` file must have line 1 exactly equal to `# CLOAK: ENCRYPTED`
+- Otherwise Cloak exits with `File is not protected by Cloak`
+
+## Output naming
+
+Encode output:
+
+- `file` -> `file.cloak`
+- `.env` -> `.env.cloak`
+- `secret.json` -> `secret.json.cloak`
+
+Decode output:
+
+- `file.cloak` -> `file`
+- `.env.cloak` -> `.env`
+- `secret.json.cloak` -> `secret.json`
+
+Only the final `.cloak` suffix is removed when decoding.
+
+## Confirmation and overwrite behavior
+
+Before writing output, Cloak asks for confirmation and shows:
+
+- action (`encode` or `decode`)
+- source path
+- output path
+
+If the destination already exists, Cloak shows an overwrite warning and asks to continue.
+
+If you decline any warning or confirmation, Cloak exits without writing.
+
+## Text-file restrictions
+
+Cloak is for text files.
+
+If a selected/direct-path file cannot be safely read as text (including directories, missing paths, non-text or invalid UTF-8 inputs), Cloak exits with:
+
+```txt
+Cannot read file
+```
+
+## Authentication flow
+
+On first run:
+
+1. Cloak asks for a new password
+2. Cloak asks for confirmation
+3. Cloak stores password-derived authentication data in:
 
 ```txt
 ~/.config/cloak/config.json
 ```
 
-After setup, the same run continues directly to file selection.
-
-### Later runs
-
 On later runs:
 
 - Cloak asks for your password
 - You get up to 3 attempts
-- After 3 wrong attempts, Cloak exits with:
+- After 3 failed attempts, it exits with `Too many failed attempts`
 
-```txt
-Too many failed attempts
-```
-
-### File selection
-
-After successful authentication:
-
-- Cloak lists files from the current directory only
-- It does not recurse into subdirectories
-- It rejects files outside the startup directory
-- It allows any top-level file, but prioritizes these patterns first:
-  - `.env*`
-  - `*.json`
-  - `*.txt`
-  - `*.pem`
-  - `*.key`
-
-## Encode / decode behavior
-
-Cloak uses a simple marker on line 1:
-
-```txt
-# CLOAK: ENCRYPTED
-```
-
-Behavior:
-
-- if line 1 exactly equals `# CLOAK: ENCRYPTED`, Cloak treats the file as encoded and offers to decode it
-- otherwise Cloak treats the file as plain text and offers to encode it
-
-Confirmation messages are:
-
-- `This file is plain text. Encode it?`
-- `This file is protected by Cloak. Decode it?`
-
-Success messages are:
-
-- `File encoded successfully`
-- `File decoded successfully`
-
-## Encoded file format
-
-Encoded files are stored as text.
-
-Line 1:
-
-```txt
-# CLOAK: ENCRYPTED
-```
-
-Line 2:
-- compact JSON payload containing encryption metadata and ciphertext
-
-Example shape:
-
-```json
-{"version":1,"alg":"aes-256-gcm","kdf":"scrypt","salt":"...","iv":"...","tag":"...","ciphertext":"..."}
-```
+Cloak does not store the raw password.
 
 ## Security details
 
 ### Password storage
 
-Cloak does **not** store your raw password.
-
-It stores password-derived authentication data in `config.json` using:
+`config.json` stores password-derived authentication data using:
 
 - Argon2id
 - random salt per password record
@@ -135,60 +125,16 @@ It stores password-derived authentication data in `config.json` using:
 
 Cloak encrypts file contents using:
 
-- AES-256-GCM for file encryption
-- a per-file random salt
-- `scrypt` to derive the file encryption key from your password
+- AES-256-GCM
+- per-file random salt
+- `scrypt` key derivation from your password
 
-## Backup behavior
+Encoded files are stored as text with:
 
-Before Cloak overwrites a file, it creates a backup first.
-
-Default backup name:
-
-```txt
-<filename>.cloak.bak
-```
-
-Examples:
-
-- `.env` → `.env.cloak.bak`
-- `secret.json` → `secret.json.cloak.bak`
-
-If that backup name already exists, Cloak creates a unique backup path instead.
-
-Rules:
-
-1. create backup first
-2. write updated file
-3. if write succeeds, remove backup
-4. if write fails, keep backup
-
-## Text-file restrictions
-
-Cloak is for text files.
-
-It will reject files that look like binary or invalid UTF-8 text instead of trying to encode them.
-
-If a file cannot be safely read as text, Cloak exits with:
-
-```txt
-Cannot read file
-```
-
-## Exit behavior
-
-You can exit without changing anything by:
-
-- pressing `Esc`
-- pressing `q`
-- cancelling at file selection
-- cancelling at confirmation
-
-If you cancel, Cloak exits cleanly and leaves files unchanged.
+- line 1 marker: `# CLOAK: ENCRYPTED`
+- line 2 compact JSON payload containing metadata and ciphertext
 
 ## Installation
-
-This project is currently set up as a local Node.js CLI project.
 
 ### Requirements
 
@@ -213,18 +159,17 @@ npm run build
 node dist/cli.js
 ```
 
-### Link as a local CLI command
-
-If you want to run `cloak` directly in your shell:
+### Link as local CLI command
 
 ```bash
 npm link
 ```
 
-Then you can use:
+Then use:
 
 ```bash
 cloak
+cloak <path>
 ```
 
 ## Development
@@ -241,62 +186,11 @@ npm run dev
 npm test
 ```
 
-### Build the project
+### Build
 
 ```bash
 npm run build
 ```
-
-## Usage examples
-
-### Encode a `.env` file
-
-Suppose your current directory contains:
-
-```txt
-.env
-```
-
-Contents:
-
-```env
-API_KEY=abc123
-APP_ENV=production
-```
-
-Run:
-
-```bash
-cloak
-```
-
-Then:
-
-- enter password
-- select `.env`
-- confirm encode
-
-After encoding, the file starts with:
-
-```txt
-# CLOAK: ENCRYPTED
-```
-
-### Decode an encoded file
-
-Run:
-
-```bash
-cloak
-```
-
-Then:
-
-- enter password
-- select the encoded file
-- confirm decode
-
-Cloak restores the original text into the same file.
 
 ## Project structure
 
@@ -310,20 +204,17 @@ src/
 tests/
 ```
 
-Main areas:
+Main files:
 
 - `src/cli.ts` — CLI entrypoint
 - `src/app/runCloak.ts` — main app flow
-- `src/config/config.ts` — config load/save
-- `src/crypto/password.ts` — password hashing and verification
-- `src/crypto/fileCipher.ts` — file encode/decode logic
-- `src/files/listFiles.ts` — file listing and ordering
-- `src/files/writeWithBackup.ts` — backup + overwrite logic
-- `src/ui/prompts.ts` — interactive terminal prompts
+- `src/files/resolveTarget.ts` — path/action/output resolution
+- `src/files/writeOutput.ts` — output-file writer
+- `src/files/listFiles.ts` — picker file listing
+- `src/crypto/fileCipher.ts` — encode/decode logic
+- `src/ui/prompts.ts` — interactive prompts
 
-## Error messages
-
-Common messages you may see:
+## Common messages
 
 - `Wrong password`
 - `Too many failed attempts`
@@ -332,15 +223,6 @@ Common messages you may see:
 - `Cannot write file`
 - `Invalid config.json: ...`
 - `File is not protected by Cloak`
-- `Wrong password` when decoding with the wrong password
-
-## Notes
-
-- Cloak currently works on text files only
-- Cloak works in the current directory only
-- Cloak does not recurse into subdirectories
-- Cloak does not store the raw password
-- Cloak overwrites the selected file in place after confirmation
 
 ## License
 
