@@ -11,6 +11,17 @@ For people who receive a `.cloak` file and only need to restore the original tex
 - Node.js 20.12 or newer
 - npm
 
+### Install with an LLM
+
+If you want an LLM coding agent to do the installation for you, paste this prompt:
+
+```text
+Install Cloak for me by following the installation instructions in:
+https://github.com/truongezgg/cloak?tab=readme-ov-file#installation
+
+Check the requirements first. Use the GitHub HTTPS install command unless I explicitly ask for SSH or GitHub shorthand. After installation, confirm that the `cloak` command is available.
+```
+
 ### Install globally from GitHub
 
 Using the GitHub HTTPS URL:
