@@ -51,7 +51,7 @@ it("prints version for -v", async () => {
     runCli(["node", "cloak", "-v"], (line) => lines.push(line)),
   ).resolves.toBeUndefined();
 
-  expect(lines).toEqual(["0.1.4"]);
+  expect(lines).toEqual(["0.1.5"]);
 });
 
 it("prints version for --version", async () => {
@@ -61,7 +61,7 @@ it("prints version for --version", async () => {
     runCli(["node", "cloak", "--version"], (line) => lines.push(line)),
   ).resolves.toBeUndefined();
 
-  expect(lines).toEqual(["0.1.4"]);
+  expect(lines).toEqual(["0.1.5"]);
 });
 
 it("prompts for local password on first run, rewrites .cloak, and encodes selected file", async () => {
