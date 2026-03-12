@@ -30,7 +30,8 @@
       "Search",
       "mcp__ide__getDiagnostics",
       "Bash(node --input-type=module -e \"import { encodeTextFile } from './dist/crypto/fileCipher.js'; const plain = ['hello from cloak','this is a sample file for decode testing','password: demo123 \\(example only\\)'].join\\('\\\\n'\\) + '\\\\n'; const encoded = await encodeTextFile\\(plain, 'demo123'\\); process.stdout.write\\(encoded\\);\")",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(node ./dist/src/cli.js --version)"
     ]
   }
 }
