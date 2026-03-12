@@ -97,7 +97,7 @@ export function createPromptPort(): PromptPort {
       runWithExitKeys((context) =>
         password(
           {
-            message: `${promptHeaderMessage(promptContext)}\n\nEnter password for .cloak`,
+            message: `${promptHeaderMessage(promptContext)}\n\n${promptContext.configFound ? "Enter password for .cloak" : "Create password for .cloak"}`,
           },
           context,
         ),

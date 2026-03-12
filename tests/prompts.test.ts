@@ -127,7 +127,7 @@ it("returns false for no confirmation input", async () => {
   ).resolves.toBe(false);
 });
 
-it("shows not-found config status in password prompt header", async () => {
+it("shows create-password message when config is missing", async () => {
   vi.mocked(password).mockResolvedValue("secret123");
 
   const prompts = createPromptPort();
@@ -138,6 +138,17 @@ it("shows not-found config status in password prompt header", async () => {
   expect(message).toContain("Esc/q to exit");
   expect(message).toContain("⚙️ : not found (/tmp/workspace/.cloak)");
   expect(message).toContain("📁: /tmp/workspace");
+  expect(message).toContain("Create password for .cloak");
+});
+
+it("shows enter-password message when config exists", async () => {
+  vi.mocked(password).mockResolvedValue("secret123");
+
+  const prompts = createPromptPort();
+  await prompts.askLocalPassword(foundConfigContext);
+
+  expect(vi.mocked(password)).toHaveBeenCalledTimes(1);
+  const message = vi.mocked(password).mock.calls[0]?.[0]?.message ?? "";
   expect(message).toContain("Enter password for .cloak");
 });
 
