@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
 import { runCloak } from '../src/app/runCloak.js'
+import { runCli } from '../src/cli.js'
 import { encodeTextFile } from '../src/crypto/fileCipher.js'
 import { outsideRootMessage } from '../src/ui/prompts.js'
 
@@ -31,6 +32,22 @@ function basePrompts() {
     showMessage: vi.fn().mockResolvedValue(undefined),
   }
 }
+
+it('prints version for -v', async () => {
+  const lines: string[] = []
+
+  await expect(runCli(['node', 'cloak', '-v'], (line) => lines.push(line))).resolves.toBeUndefined()
+
+  expect(lines).toEqual(['0.1.2'])
+})
+
+it('prints version for --version', async () => {
+  const lines: string[] = []
+
+  await expect(runCli(['node', 'cloak', '--version'], (line) => lines.push(line))).resolves.toBeUndefined()
+
+  expect(lines).toEqual(['0.1.2'])
+})
 
 it('prompts for local password on first run, rewrites .cloak, and encodes selected file', async () => {
   const root = await mkdtemp(join(tmpdir(), 'cloak-app-'))
