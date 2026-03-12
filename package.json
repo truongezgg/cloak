@@ -8,9 +8,14 @@
   "bin": {
     "cloak": "dist/src/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "DECODE.md",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepare": "npm run build",
     "dev": "tsx src/cli.ts",
     "test": "vitest run"
   },
