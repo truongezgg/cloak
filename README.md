@@ -19,27 +19,21 @@ If you want an LLM coding agent to do the installation for you, paste this promp
 Install Cloak for me by following the installation instructions in:
 https://raw.githubusercontent.com/truongezgg/cloak/refs/heads/main/README.md
 
-Check the requirements first. Use the GitHub HTTPS install command unless I explicitly ask for SSH or GitHub shorthand. After installation, confirm that the `cloak` command is available.
+Check the requirements first. Use the latest GitHub release install command unless I explicitly ask for a specific version. After installation, confirm that the `cloak` command is available.
 ```
 
-### Install globally from GitHub
+### Install from GitHub Releases
 
-Using the GitHub HTTPS URL:
+Install the latest tagged release artifact:
 
 ```bash
-npm install -g git+https://github.com/truongezgg/cloak.git
+npm install -g https://github.com/truongezgg/cloak/releases/latest/download/cloak.tgz
 ```
 
-Using the GitHub SSH URL:
+Install a specific release version:
 
 ```bash
-npm install -g git+ssh://git@github.com/truongezgg/cloak.git
-```
-
-Using GitHub shorthand:
-
-```bash
-npm install -g github:truongezgg/cloak
+npm install -g https://github.com/truongezgg/cloak/releases/download/v0.1.0/cloak-0.1.0.tgz
 ```
 
 After install, run:
@@ -63,11 +57,28 @@ cloak /absolute/path/to/.env.cloak
 npm update -g cloak
 ```
 
-If npm does not update the GitHub-installed package as expected, reinstall it:
+If npm does not update the GitHub release install as expected, reinstall it:
 
 ```bash
-npm install -g git+https://github.com/truongezgg/cloak.git
+npm install -g https://github.com/truongezgg/cloak/releases/latest/download/cloak.tgz
 ```
+
+### Create a release
+
+Create and push a release tag for the current `package.json` version:
+
+```bash
+npm run release
+```
+
+The release script:
+
+- requires a clean git working tree
+- runs tests
+- runs the build
+- creates a tag like `v0.1.0`
+- pushes the current branch and tag to GitHub
+- lets GitHub Actions build and publish the release assets
 
 ### Uninstall
 
