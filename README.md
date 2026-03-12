@@ -17,7 +17,7 @@ If you want an LLM coding agent to do the installation for you, paste this promp
 
 ```text
 Install Cloak for me by following the installation instructions in:
-https://github.com/truongezgg/cloak?tab=readme-ov-file#installation
+https://raw.githubusercontent.com/truongezgg/cloak/refs/heads/main/README.md
 
 Check the requirements first. Use the GitHub HTTPS install command unless I explicitly ask for SSH or GitHub shorthand. After installation, confirm that the `cloak` command is available.
 ```
